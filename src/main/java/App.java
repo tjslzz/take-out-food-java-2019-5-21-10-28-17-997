@@ -12,9 +12,153 @@ public class App {
         this.salesPromotionRepository = salesPromotionRepository;
     }
 
-    public String bestCharge(List<String> inputs) {
-        //TODO: write code here
+    public String bestCharge(List<String> inputs){
+        try{
+            /*
+            添加异常处理，规范代码
+            算法尚可优化：迭代合并到一起，一次遍历，动态规划法解决半价、满减问题；并使用一个map做无关数据的记录
+            最后比较方案花费，直接输出拼接map的字符串结果
+             */
+            /********************************************1.初始化******************************************************/
+            List<Item> items = itemRepository.findAll();
+            List<SalesPromotion> salesPromotions = salesPromotionRepository.findAll();
+            int f1=0;//计算方案1的节省资金
+            int f2=0;//计算方案2的节省资金
+            int r1;//方案1最后的花费
+            int r2;//方案2最后的花费
+            int money = 0;//中间变量：记录总价
+            boolean flag = false;//判断是否使用了优惠方案
+            StringBuilder stringBuilder = new StringBuilder();
+            /*
+            遍历，封装数据，记录总价
+             */
+            for(String infos : inputs){
+                String[] info = infos.split(" ");
+                String id = info[0];
+                Integer num = Integer.valueOf(info[2]);
+                for(Item item : items){
+                    if(item.getId().equalsIgnoreCase(id)){
+                        Double price = item.getPrice();
+                        money += Double.valueOf(price*num).intValue();
+                        stringBuilder.append(item.getName()+" x " + num + " = " + Double.valueOf(price*num).intValue() + "元\n");
+                        break;
+                    }
+                }
+            }
+            r1 = money;
+            r2 = money;
+            /********************************************2.分情况选择方案**********************************************/
+            for(String infos : inputs){
+                String[] info = infos.split(" ");
+                String id = info[0];
+                Integer num = Integer.valueOf(info[2]);
+                for(SalesPromotion salesPromotion : salesPromotions){
+                    /*
+                    如果当前为满减优惠方案
+                     */
+                    if(salesPromotion.getType().equalsIgnoreCase("BUY_30_SAVE_6_YUAN")){
+                        String temp = salesPromotion.getDisplayName();
+                        temp = temp.replace("满","");temp = temp.replace("元","");
+                        String[] man_jian = temp.split("减");
+                        Integer man = Integer.valueOf(man_jian[0]);
+                        Integer jian = Integer.valueOf(man_jian[1]);
+                        if(r1 > man){
+                            f1 = f1 + jian;
+                            r1 = r1 - jian;
+                            flag = true;
+                        }
+                    }
+                    /*
+                    如果当前为折扣优惠方案
+                     */
+                    else if (salesPromotion.getType().equalsIgnoreCase("50%_DISCOUNT_ON_SPECIFIED_ITEMS")){
+                        for(String item : salesPromotion.getRelatedItems()){
+                            if(id.equalsIgnoreCase(item)){
+                                for(Item temp : items){
+                                    if(temp.getId().equalsIgnoreCase(id)){
+                                        Double price = temp.getPrice();
+                                        Integer _old = Double.valueOf(price*num).intValue();
+                                        Integer _new = Double.valueOf(price*0.5*num).intValue();
+                                        r2 = r2 - _old + _new;
+                                        f2 = f2 + _new;
+                                        flag = true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            /********************************************3.分情况输出结果**********************************************/
+            if(flag) {
+                /*
+                如果选择了优惠方案，且满减方案花费较少。
+                 */
+                if (r1 < r2) {
+                    System.out.println(
+                            "============= 订餐明细 =============\n" +
+                                    stringBuilder.toString() +
+                                    "-----------------------------------\n" +
+                                    "使用优惠:\n" +
+                                    salesPromotions.get(0).getDisplayName() +
+                                    "，省" + f1 + "元\n" +
+                                    "-----------------------------------\n" +
+                                    "总计：" + r1 + "元\n" +
+                                    "===================================");
 
+                    return "============= 订餐明细 =============\n" +
+                            stringBuilder.toString() +
+                            "-----------------------------------\n" +
+                            "使用优惠:\n" +
+                            salesPromotions.get(0).getDisplayName() +
+                            "，省" + f1 + "元\n" +
+                            "-----------------------------------\n" +
+                            "总计：" + r1 + "元\n" +
+                            "===================================";
+                }
+                /*
+                如果选择了优惠方案，且折扣方案花费较少。
+                 */
+                else {
+                    System.out.println(
+                            "============= 订餐明细 =============\n" +
+                                    stringBuilder.toString() +
+                                    "-----------------------------------\n" +
+                                    "使用优惠:\n" +
+                                    "指定菜品半价(黄焖鸡，凉皮)，省" + f2 + "元\n" +
+                                    "-----------------------------------\n" +
+                                    "总计：" + r2 + "元\n" +
+                                    "===================================");
+
+                    return "============= 订餐明细 =============\n" +
+                            stringBuilder.toString() +
+                            "-----------------------------------\n" +
+                            "使用优惠:\n" +
+                            "指定菜品半价(黄焖鸡，凉皮)，省" + f2 + "元\n" +
+                            "-----------------------------------\n" +
+                            "总计：" + r2 + "元\n" +
+                            "===================================";
+                }
+            }
+            /*
+            没有任何优惠方案供选择
+             */
+            else {
+                System.out.println(
+                        "============= 订餐明细 =============\n" +
+                        stringBuilder.toString() +
+                        "-----------------------------------\n" +
+                        "总计：" + money + "元\n" +
+                        "===================================");
+
+                return "============= 订餐明细 =============\n" +
+                        stringBuilder.toString() +
+                        "-----------------------------------\n" +
+                        "总计：" + money + "元\n" +
+                        "===================================";
+            }
+        }
+        catch (Exception e){}
         return null;
     }
 }
